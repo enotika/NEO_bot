@@ -1,6 +1,6 @@
 import os
 import subprocess
-
+import re
 
 # Функция для поиска папок
 def search_folders(path, folder_name):

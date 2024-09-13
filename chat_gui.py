@@ -163,8 +163,8 @@ class ChatInterface(Frame):
         self.last_sent_label(str(time.strftime("Last message sent: " + '%B %d, %Y' + ' at ' + '%I:%M %p')))
         self.entry_field.delete(0, END)
         time.sleep(0)
-        t2 = threading.Thread(target=self.playResponce, args=(response,))
-        t2.start()
+        # t2 = threading.Thread(target=self.playResponce, args=(response,))
+        # t2.start()
 
     def font_change_default(self):
         self.text_box.config(font="Verdana 10")

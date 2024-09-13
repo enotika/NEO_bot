@@ -3,6 +3,10 @@ from googletrans import Translator
 
 import requests
 from bs4 import BeautifulSoup
+
+import re
+
+
 def search_movie_description(query):
     query = f"{query} фильм википедия описание"
     search_url = f"https://www.google.com/search?q={query}"

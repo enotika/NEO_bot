@@ -10,6 +10,46 @@ import json
 import torch
 from model import NeuralNet
 from nltk_utils import bag_of_words, tokenize
+from fuzzywuzzy import process
+import re
+
+commands = {
+    'open_folder': 
+        r'.*?(?:открой папку|зайди в папку|открой|зайди) (.+)$',
+        
+    'get_genres': 
+        r'.*?(?:какого жанра фильм|жанр фильма|жанры фильма|жанры мультфильма|жанры сериала|жанры кино) (.+)$',
+        
+    'get_film_desc': 
+        r'.*?(?:о чем фильм|что за фильм|расскажи про что фильм|опиши фильм|о чем мультфильм|что за мультфильм|расскажи про что мультфильм|опиши мультфильм|о чем сериал|что за сериал|расскажи про что сериал|опиши сериал) (.+)$',
+        
+    'google_query': 
+        r'.*?(?:найди в интернете|поиск в интернете|найди|загугли) (.+)$',
+        
+    'number_folder': 
+        r'.*?(?:зайди в папку номер|открой папку номер) (\d+)$',
+        
+    'youtube': 
+        r'.*?(?:включи песню|включи видео|включи видос|запусти песню|запусти видео|хочу послушать|хочу посмотреть|включи музыку|включи трек|включи клип|поставь песню|включи что-то) (.+)$',
+        
+    'where_am_i': 
+        r'.*?(?:где я|в какой папке я|в какой директории я|где нахожусь|в каком месте я|где ты меня оставил) ?$',
+        
+    'show_current_folder': 
+        r'.*?(?:ls|покажи что в папке текущей|покажи содержимое текущей папки|что в текущей папке|что в папке|покажи содержимое папки) ?$',
+        
+    'go_up_folder': 
+        r'.*?(?:up|выйди в папку выше|подняться на уровень вверх|выйти на уровень выше|перейти в родительскую папку|подняться на один уровень) ?$',
+        
+    'enter_subfolder': 
+        r'.*?(?:cd|войди в подпапку|зайди в подпапку|открой подпапку|перейди в подпапку) (.+)$',
+        
+    'create_file': 
+        r'.*?(?:touch|создай файл|создать файл|создай документ|добавь файл) (.+)$',
+        
+    'delete_file': 
+        r'.*?(?:delete|удали файл|удалить файл|убери файл|сотри файл) (.+)$',
+}
 
 # Инициализация устройства
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -36,12 +76,12 @@ model.eval()
 class ChatBot:
     def __init__(self):
         self.current_path = os.getcwd()  # Начинаем с текущей директории
-        self.responses = {
-            "привет": "Привет! Как я могу помочь?",
-            "как дела?": "У меня всё хорошо, спасибо!",
-            "пока": "До свидания! Удачи!",
-            "спасибо": "Не за что! Был рад вам помочь!",
-        }
+        # self.responses = {
+        #     "привет": "Привет! Как я могу помочь?",
+        #     "как дела?": "У меня всё хорошо, спасибо!",
+        #     "пока": "До свидания! Удачи!",
+        #     "спасибо": "Не за что! Был рад вам помочь!",
+        # }
     def handle_chatbot_response(self, msg):
         # Обработка сообщения с использованием нейронной сети
         sentence = tokenize(msg)
@@ -63,22 +103,35 @@ class ChatBot:
         
         return "Извините, я не понимаю. Можете переформулировать?"
     def get_response(self, user_input):
-            # Простой поиск ответа
-            # Регулярное выражение для проверки формата
-        pattern = r'^открой папку (.+?)$'
+        # Обработка пользовательского ввода
+        
+        # pattern = r'^открой папку (.+?)$'
+        pattern = commands["open_folder"]
+        # print(pattern)
         match_open_folder = re.match(pattern, user_input.lower())
-
-        pattern = r'^какого жанра фильм (.+)$'
+        # print('goodf')
+        # pattern = r'^какого жанра фильм (.+)$'
+        pattern = commands["get_genres"]
+        # print(pattern)
         match_get_genres = re.match(pattern, user_input.lower())
 
-        pattern = r'^о чем фильм (.+)$'
+        # pattern = r'^о чем фильм (.+)$'
+        pattern = commands["get_film_desc"]
+        # print(pattern)
         match_get_film_desc = re.match(pattern, user_input.lower())
-        pattern = r'^найди в интернете (.+)$'
+
+        # pattern = r'^найди в интернете (.+)$'
+        pattern = commands["google_query"]
         match_google_query = re.match(pattern, user_input.lower())
-        pattern = r'^зайди в папку (\d+)$'  # Ожидаем слово "зайди в папку" и номер папки
+
+        # pattern = r'^зайди в папку (\d+)$'  # Ожидаем слово "зайди в папку" и номер папки
+        pattern = commands["number_folder"]
         match_number_folder = re.match(pattern, user_input.lower())
-        pattern = r'^включи (песню|видео|видос) (.+)$'
+
+        # pattern = r'^включи (песню|видео|видос) (.+)$'
+        pattern = commands["youtube"]
         match_youtube = re.match(pattern, user_input.lower())
+
         if match_open_folder:
             folder_name = match_open_folder.group(1)  # Извлекаем название папки
             return find_and_open_folders(folder_name)
@@ -95,12 +148,13 @@ class ChatBot:
             google_query = match_google_query.group(1).strip() # Извлекаем название папки
             return open_google_search(google_query)
         elif match_youtube:
-            media_type = match_youtube.group(1)  # Извлекаем тип медиа (песня, видео, видос)
-            media_name = match_youtube.group(2)  # Извлекаем номер медиа
+            # media_type = match_youtube.group(1)  # Извлекаем тип медиа (песня, видео, видос)
+            media_name = match_youtube.group(1)  # Извлекаем номер медиа
             search_youtube(media_name)
-            return f"Включаю {media_type}: {media_name}"
-        elif user_input.startswith("cd "):  # Переход в папку
-            folder_name = user_input[3:].strip()
+            return f"Включаю {media_name}: {media_name}"
+        elif re.match(commands['enter_subfolder'], user_input):  # Переход в папку
+            # folder_name = user_input[3:].strip()
+            folder_name = re.match(commands["enter_subfolder"], user_input).group(1).strip()
             new_path = os.path.join(self.current_path, folder_name)
 
             if os.path.isdir(new_path):
@@ -109,12 +163,12 @@ class ChatBot:
             else:
                 return("Папка не найдена.")
 
-        elif user_input == "up":  # Переход на уровень выше
+        elif re.match(commands["go_up_folder"], user_input.lower()):  # Переход на уровень выше
             self.current_path = os.path.dirname(self.current_path)
             return f"Перешел на уровень выше. Текущая папка {self.current_path}"
-        elif user_input.lower() == "где я":  # Переход на уровень выше
+        elif re.match(commands['where_am_i'], user_input.lower()):  # Переход на уровень выше
             return f"Текущая папка {self.current_path}"
-        elif user_input == "ls":  # Показать содержимое
+        elif re.match(commands['show_current_folder'], user_input.lower()):  # Показать содержимое
             try:
                 items = os.listdir(self.current_path)
             except PermissionError:
@@ -127,8 +181,9 @@ class ChatBot:
                 ans += f"{index + 1}. {item}\n"
             return ans
         
-        elif user_input.startswith("touch "):
-            file_name = user_input[6:].strip()
+        elif re.match(commands['create_file'], user_input.lower()):
+            # file_name = user_input[6:].strip()
+            file_name = re.match(commands['create_file'], user_input.lower()).group(1).strip()
             file_path = os.path.join(self.current_path, file_name)
 
             with open(file_path, 'w') as file:
@@ -136,8 +191,9 @@ class ChatBot:
                 file.write("Файл был создан успешно!")
             return(f'Файл "{file_name}" создан в {self.current_path}.')
         
-        elif user_input.startswith("delete "):  # Удаление файла
-            file_name = user_input[7:].strip()
+        elif re.match(commands['delete_file'], user_input.lower()):  # Удаление файла
+            # file_name = user_input[7:].strip()
+            file_name = re.match(commands['delete_file'], user_input.lower()).group(1).strip()
             file_path = os.path.join(self.current_path, file_name)
 
             if os.path.isfile(file_path):

@@ -28,7 +28,7 @@ def search_youtube(song_title):
             video_title = video['snippet']['title']
             video_id = video['id']['videoId']
             video_url = f"https://www.youtube.com/watch?v={video_id}"
-            print(f"Найдена песня: {video_title}\nСсылка: {video_url}")
+            # print(f"Найдена песня: {video_title}\nСсылка: {video_url}")
             webbrowser.open_new(video_url)
 
         else:
